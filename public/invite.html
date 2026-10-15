@@ -1,32 +1,52 @@
 <!doctype html>
 <html lang="th">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Join on Splitzy</title>
-  <style>
-    body { font-family: -apple-system, sans-serif; text-align: center; padding: 48px 24px; background: #F5F8F7; }
-    h1 { font-size: 22px; }
-    a.btn { display: inline-block; margin-top: 24px; padding: 16px 32px; border-radius: 14px;
-            background: #1DC29E; color: #0B3B30; font-weight: 700; text-decoration: none; font-size: 18px; }
-    p { color: #6B7570; }
-  </style>
-</head>
-<body>
-  <h1>You're invited to a group on Splitzy</h1>
-  <a id="open" class="btn" href="#">Open in Splitzy</a>
-  <p>If nothing happens, make sure Splitzy is installed.</p>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Join on Splitzy</title>
+        <style>
+            body {
+                font-family: -apple-system, sans-serif;
+                text-align: center;
+                padding: 48px 24px;
+                background: #f5f8f7;
+            }
+            h1 {
+                font-size: 22px;
+            }
+            a.btn {
+                display: inline-block;
+                margin-top: 24px;
+                padding: 16px 32px;
+                border-radius: 14px;
+                background: #1dc29e;
+                color: #0b3b30;
+                font-weight: 700;
+                text-decoration: none;
+                font-size: 18px;
+            }
+            p {
+                color: #6b7570;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>You're invited to a group on Splitzy</h1>
+        <a id="open" class="btn" href="#">Open in Splitzy</a>
+        <p>If nothing happens, make sure Splitzy is installed.</p>
 
-  <script>
-    // /invite/GROUP_ID/INVITE_ID → splitzy://invite/GROUP_ID/INVITE_ID
-    var path = location.pathname.replace(/^\/invite\//, '');
-    var isAndroid = /Android/i.test(navigator.userAgent);
-    var appUrl = isAndroid
-      ? 'intent://invite/' + path + '#Intent;scheme=splitzy;package=com.dinodorinna.splitzy;end'
-      : 'splitzy://invite/' + path;
+        <script>
+            // /invite/GROUP_ID/INVITE_ID → splitzy://invite/GROUP_ID/INVITE_ID
+            var path = location.pathname.replace(/^\/invite\//, "");
+            var isAndroid = /Android/i.test(navigator.userAgent);
+            var appUrl = isAndroid
+                ? "intent://invite/" +
+                  path +
+                  "#Intent;scheme=splitzy;package=com.dinodorinna.splitzy;end"
+                : "splitzy://invite/" + path;
 
-    document.getElementById('open').href = appUrl;
-    location.href = appUrl; // try opening automatically
-  </script>
-</body>
+            document.getElementById("open").href = appUrl;
+            location.href = appUrl; // try opening automatically
+        </script>
+    </body>
 </html>

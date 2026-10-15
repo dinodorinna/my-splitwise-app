@@ -1,6 +1,6 @@
 {
-  "hosting": {
-    "public": "public",
-    "rewrites": [{ "source": "/invite/**", "destination": "/invite.html" }]
-  }
+    "hosting": {
+        "public": "public",
+        "rewrites": [{ "source": "/invite/**", "destination": "/invite.html" }]
+    }
 }
