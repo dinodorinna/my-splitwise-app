@@ -1,4 +1,12 @@
-import { ScrollView, Share, StatusBar, StyleSheet, TouchableOpacity, View, Text } from 'react-native';
+import {
+    ScrollView,
+    Share,
+    StatusBar,
+    StyleSheet,
+    TouchableOpacity,
+    View,
+    Text,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GroupMember, Member } from '../../components/ui/group/groupMembers';
 import { GroupOverview } from '../../components/ui/group/groupOverview';
@@ -6,29 +14,42 @@ import { GroupHeader } from '../../components/ui/group/groupHeader';
 import { Plus } from 'lucide-react-native';
 import { useThemeContext } from '../../context/theme/themeContext';
 import { useGroupsContext } from '../../context/group/groupsContext';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { InviteMemberSheet } from '../../components/ui/friend/inviteMemberSheet';
 import { createInviteLink } from '../../service/invites';
 import { themes } from '../../context/theme/themeProvider';
-
-const TOTAL_BALANCE = 1275.5;
-const TOTAL_OWE = 310.0;
-const TOTAL_OWED_TO_YOU = 1585.5;
+import { useAuth } from '../../context/auth/authContext';
+import { useProfiles } from '../../context/profiles/profilesContext';
+import { useGroupExpenses } from '../../context/expense/useGroupExpenses';
+import { computeMyBalance } from '../../service/expense';
+import { MainStackParamList } from '../../navigation/mainNavigator';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 export const ExistGroupScreen = () => {
-    const { theme, scheme, brand } = useThemeContext();
+    const { mode, scheme, brand } = useThemeContext();
     const isDark = scheme === 'dark';
     const [inviteOpen, setInviteOpen] = useState(false);
     const { groups, currentGroup } = useGroupsContext();
+    const navigation = useNavigation<NativeStackNavigationProp<MainStackParamList>>();
+    const { user } = useAuth();
+    const { getProfile } = useProfiles();
+    const { expenses } = useGroupExpenses(currentGroup?.id);
+    const balance = useMemo(
+        () => computeMyBalance(expenses, user?.uid ?? ''),
+        [expenses, user?.uid],
+    );
+
+    console.log({ balance, expenses });
 
     return (
         <SafeAreaView
-            style={[styles.container, { backgroundColor: theme.background }]}
+            style={[styles.container, { backgroundColor: mode.background }]}
             edges={['top']}
         >
             <StatusBar
                 barStyle={isDark ? 'light-content' : 'dark-content'}
-                backgroundColor={theme.background}
+                backgroundColor={mode.background}
             />
 
             <ScrollView
@@ -42,9 +63,9 @@ export const ExistGroupScreen = () => {
 
                     {/* Balance summary */}
                     <GroupOverview
-                        totalBalance={TOTAL_BALANCE}
-                        totalOwed={TOTAL_OWE}
-                        totalOwedToYou={TOTAL_OWED_TO_YOU}
+                        totalBalance={balance.overall / 100}
+                        totalOwed={balance.youOwe / 100}
+                        totalOwedToYou={balance.owedToYou / 100}
                     />
                 </View>
 
@@ -58,6 +79,12 @@ export const ExistGroupScreen = () => {
             <TouchableOpacity
                 style={[styles.addExpenseBtn, { backgroundColor: brand.main }]}
                 activeOpacity={0.85}
+                onPress={() => {
+                    // Navigate to AddExpenseScreen with the current group ID
+                    if (currentGroup) {
+                        navigation.navigate('AddExpense', { groupId: currentGroup.id });
+                    }
+                }}
             >
                 <Plus size={20} color={themes.palate.white} />
                 <Text style={styles.addExpenseBtnText}>Add expense</Text>
@@ -68,9 +95,10 @@ export const ExistGroupScreen = () => {
                 onClose={() => setInviteOpen(false)}
                 onSendEmail={() => {}}
                 onShareLink={async () => {
+                    if (!currentGroup) return;
                     const inviteWithLink = await createInviteLink(
-                        currentGroup?.id ?? '',
-                        currentGroup?.name ?? '',
+                        currentGroup,
+                        currentGroup.memberIds.map((uid) => getProfile(uid)?.displayName ?? ''),
                     );
 
                     await Share.share({ message: inviteWithLink });

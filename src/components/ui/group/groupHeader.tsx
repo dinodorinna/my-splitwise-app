@@ -20,7 +20,7 @@ export const GroupHeader = () => {
     const mutedText = isDark ? '#9CA3AF' : themes.palate.gray;
     const borderColor = isDark ? '#FFFFFF14' : '#00000010';
 
-    const paticipants = (groups[0]?.memberIds ?? [])
+    const participants = (groups[0]?.memberIds ?? [])
         .slice()
         .sort((a, b) => (a === user?.uid ? -1 : b === user?.uid ? 1 : 0)) // me first
         .map((uid) => getProfile(uid))
@@ -43,7 +43,7 @@ export const GroupHeader = () => {
             </View>
             <View style={styles.headerRight}>
                 <View style={styles.avatarStack}>
-                    {paticipants.map((member, index) => (
+                    {participants.map((member, index) => (
                         <View
                             key={member?.uid}
                             style={[

@@ -12,7 +12,7 @@ export default function App() {
         prefixes: ["splitzy://"],
         config: {
             screens: {
-                JoinGroup: "invite/:groupId/:inviteId",
+                JoinGroup: "invite/:token",
             },
         },
     };
@@ -23,7 +23,7 @@ export default function App() {
                 <GroupsProvider>
                     <ProfilesProvider>
                         <ThemeProvider>
-                            <NavigationContainer>
+                            <NavigationContainer linking={linking}>
                                 <RootNavigator />
                             </NavigationContainer>
                         </ThemeProvider>

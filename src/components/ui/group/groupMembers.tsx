@@ -23,11 +23,7 @@ type GroupMemberProps = {
     pendingEmails?: string[];
 };
 
-export const GroupMember = ({
-    onAddMember = () => {},
-    isShowBanner,
-    pendingEmails,
-}: GroupMemberProps) => {
+export const GroupMember = ({ onAddMember = () => {}, isShowBanner }: GroupMemberProps) => {
     const { user } = useAuth();
     const { mode, scheme } = useThemeContext();
     const { friends, getProfile } = useProfiles();
@@ -38,13 +34,11 @@ export const GroupMember = ({
     const mutedText = isDark ? '#9CA3AF' : themes.palate.gray;
     const borderColor = isDark ? '#FFFFFF14' : '#00000010';
 
-    const paticipants = (groups[0]?.memberIds ?? [])
+    const participants = (groups[0]?.memberIds ?? [])
         .slice()
         .sort((a, b) => (a === user?.uid ? -1 : b === user?.uid ? 1 : 0)) // me first
         .map((uid) => getProfile(uid))
         .filter((p): p is UserProfile => !!p);
-
-    console.log({ paticipants });
 
     // if (friends.length === 0) {
     //   return (
@@ -79,12 +73,12 @@ export const GroupMember = ({
                 <Text style={[styles.sectionHeader, { color: mutedText }]}>MEMBERS</Text>
                 <View>
                     <Text style={[styles.peopleText, { color: mutedText }]}>
-                        {paticipants?.length + 1} people
+                        {participants?.length + 1} people
                     </Text>
                 </View>
             </View>
             <View style={[styles.membersCard, { backgroundColor: mode.card, borderColor }]}>
-                {paticipants?.map((member, index) => {
+                {participants?.map((member, index) => {
                     // const owesYou = member.balance > 0;
                     const owesYou = false; // TODO: calculate based on member.balance
                     return (
@@ -92,7 +86,7 @@ export const GroupMember = ({
                             key={member.uid}
                             style={[
                                 styles.memberRow,
-                                index !== paticipants.length - 1 && {
+                                index !== participants.length - 1 && {
                                     borderBottomWidth: StyleSheet.hairlineWidth,
                                     borderBottomColor: borderColor,
                                 },
@@ -128,7 +122,7 @@ export const GroupMember = ({
                     );
                 })}
 
-                {friends.length === 0 && paticipants.length === 0 ? (
+                {friends.length === 0 && participants.length === 0 ? (
                     <View
                         style={{
                             borderTopWidth: 1,

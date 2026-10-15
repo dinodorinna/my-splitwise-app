@@ -19,20 +19,7 @@ import { createGroup, GroupType } from '../../service/groups';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MainStackParamList } from '../../navigation/mainNavigator';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
-import { createInviteLink } from '../../service/invites';
-import { useProfiles } from '../../context/profiles/profilesContext';
 import { themes } from '../../context/theme/themeProvider';
-
-const GROUP_MEMBERS: Member[] = [
-    {
-        id: 'you',
-        name: 'You',
-        initial: 'P',
-        color: '#10B981',
-        balance: 0,
-        status: 'DEFAULT',
-    },
-];
 
 export const NewGroupScreen = () => {
     const { mode, scheme } = useThemeContext();
@@ -77,7 +64,6 @@ export const NewGroupScreen = () => {
     ];
 
     const [inviteOpen, setInviteOpen] = useState(false);
-
     const navigation = useNavigation<NativeStackNavigationProp<MainStackParamList>>();
     const [name, setName] = useState('');
     const [typeSelected, setTypeSelected] = useState(
@@ -120,7 +106,7 @@ export const NewGroupScreen = () => {
 
     return (
         <SafeAreaView
-            style={[styles.container, { backgroundColor: theme.background }]}
+            style={[styles.container, { backgroundColor: mode.background }]}
             edges={['top']}
         >
             {/* Group name */}

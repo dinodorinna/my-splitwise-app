@@ -2,6 +2,7 @@
     "expo": {
         "name": "my-splitwise-app",
         "slug": "my-splitwise-app",
+        "scheme": "splitzy",
         "version": "1.0.0",
         "orientation": "portrait",
         "icon": "./assets/icon.png",
