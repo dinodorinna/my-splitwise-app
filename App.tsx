@@ -9,7 +9,7 @@ import { MainStackParamList } from "./src/navigation/mainNavigator";
 
 export default function App() {
     const linking: LinkingOptions<MainStackParamList> = {
-        prefixes: ["splitzy://"],
+        prefixes: ["splitzy://", "https://splitzy-ceb27.web.app"],
         config: {
             screens: {
                 JoinGroup: "invite/:token",

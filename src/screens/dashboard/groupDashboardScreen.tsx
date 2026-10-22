@@ -52,7 +52,6 @@ export const GroupDashboardScreen = () => {
     const isDark = scheme === 'dark';
 
     const { groups } = useGroupsContext();
-    console.log({ groups });
 
     return (
         <SafeAreaView

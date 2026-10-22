@@ -30,7 +30,7 @@ export const ExistGroupScreen = () => {
     const { mode, scheme, brand } = useThemeContext();
     const isDark = scheme === 'dark';
     const [inviteOpen, setInviteOpen] = useState(false);
-    const { groups, currentGroup } = useGroupsContext();
+    const { currentGroup } = useGroupsContext();
     const navigation = useNavigation<NativeStackNavigationProp<MainStackParamList>>();
     const { user } = useAuth();
     const { getProfile } = useProfiles();
@@ -39,8 +39,6 @@ export const ExistGroupScreen = () => {
         () => computeMyBalance(expenses, user?.uid ?? ''),
         [expenses, user?.uid],
     );
-
-    console.log({ balance, expenses });
 
     return (
         <SafeAreaView

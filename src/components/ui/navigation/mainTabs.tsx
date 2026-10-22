@@ -44,13 +44,13 @@ export const MainTabs = ({ user }: MainNavigatorProps) => {
                     tabBarIcon: ({ color, size }) => <Users color={color} size={size} />,
                 }}
             />
-            <Tab.Screen
+            {/* <Tab.Screen
                 name="Activity"
                 component={ActivityScreen}
                 options={{
                     tabBarIcon: ({ color, size }) => <Zap color={color} size={size} />,
                 }}
-            />
+            /> */}
             <Tab.Screen
                 name="Friends"
                 component={FriendsScreen}

@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { useThemeContext } from '../../../context/theme/themeContext';
 import { ChevronRight, Plus, QrCode, UserPlus } from 'lucide-react-native';
 import { formatBaht } from '../../../utils';
@@ -7,6 +8,9 @@ import { useGroupsContext } from '../../../context/group/groupsContext';
 import { useAuth } from '../../../context/auth/authContext';
 import { UserProfile } from '../../../service/users';
 import { themes } from '../../../context/theme/themeProvider';
+import { useGroupExpenses } from '../../../context/expense/useGroupExpenses';
+import { computeNetByMember, createSettlement } from '../../../service/expense';
+import { PromptPaySheet } from '../friend/promptPaySheet';
 
 export type Member = {
     id: string;
@@ -21,20 +25,48 @@ type GroupMemberProps = {
     onAddMember?: () => void;
     isShowBanner?: boolean;
     pendingEmails?: string[];
+    groupId?: string;
 };
 
-export const GroupMember = ({ onAddMember = () => {}, isShowBanner }: GroupMemberProps) => {
+export const GroupMember = ({
+    onAddMember = () => {},
+    isShowBanner,
+    groupId,
+}: GroupMemberProps) => {
     const { user } = useAuth();
     const { mode, scheme } = useThemeContext();
     const { friends, getProfile } = useProfiles();
 
-    const { groups } = useGroupsContext();
+    const { groups, currentGroup, getGroup } = useGroupsContext();
+    const group = groupId ? getGroup(groupId) : (currentGroup ?? groups[0]);
+
+    const { expenses } = useGroupExpenses(group?.id);
+    const netByMember = useMemo(
+        () => computeNetByMember(expenses, user?.uid ?? ''),
+        [expenses, user?.uid],
+    );
+    const [settling, setSettling] = useState<{ friend: UserProfile; net: number } | null>(null);
+
+    const onConfirmSettle = async () => {
+        if (!settling || !user || !group) return;
+        const { friend, net } = settling;
+        try {
+            await createSettlement(group.id, {
+                payerId: net > 0 ? friend.uid : user.uid,
+                payeeId: net > 0 ? user.uid : friend.uid,
+                amount: Math.abs(net),
+            });
+            setSettling(null);
+        } catch {
+            Alert.alert('Could not settle up', 'Please try again.');
+        }
+    };
 
     const isDark = scheme === 'dark';
     const mutedText = isDark ? '#9CA3AF' : themes.palate.gray;
-    const borderColor = isDark ? '#FFFFFF14' : '#00000010';
+    const borderColor = isDark ? '#FFFFFF14' : '#d6d6d6';
 
-    const participants = (groups[0]?.memberIds ?? [])
+    const participants = (group?.memberIds ?? [])
         .slice()
         .sort((a, b) => (a === user?.uid ? -1 : b === user?.uid ? 1 : 0)) // me first
         .map((uid) => getProfile(uid))
@@ -73,14 +105,22 @@ export const GroupMember = ({ onAddMember = () => {}, isShowBanner }: GroupMembe
                 <Text style={[styles.sectionHeader, { color: mutedText }]}>MEMBERS</Text>
                 <View>
                     <Text style={[styles.peopleText, { color: mutedText }]}>
-                        {participants?.length + 1} people
+                        {participants?.length} people
                     </Text>
                 </View>
             </View>
-            <View style={[styles.membersCard, { backgroundColor: mode.card, borderColor }]}>
+            <View style={[styles.membersCard, { borderColor: borderColor }]}>
                 {participants?.map((member, index) => {
-                    // const owesYou = member.balance > 0;
-                    const owesYou = false; // TODO: calculate based on member.balance
+                    const isMe = member.uid === user?.uid;
+                    const net = netByMember[member.uid] ?? 0; // satang, + = they owe me
+                    const owesYou = net > 0;
+                    const settled = net === 0;
+                    const statusColor = settled ? mutedText : owesYou ? '#0F766E' : '#F97316';
+                    const statusText = settled
+                        ? 'settled up'
+                        : owesYou
+                          ? `owes you ${formatBaht(net / 100)}`
+                          : `you owe ${formatBaht(net / 100)}`;
                     return (
                         <View
                             key={member.uid}
@@ -107,17 +147,32 @@ export const GroupMember = ({ onAddMember = () => {}, isShowBanner }: GroupMembe
                                 <Text style={[styles.memberName, { color: mode.text }]}>
                                     {member.displayName}
                                 </Text>
+                                {!isMe && (
+                                    <Text style={[styles.memberStatus, { color: statusColor }]}>
+                                        {statusText}
+                                    </Text>
+                                )}
                             </View>
-                            {/* {member.status !== "DEFAULT" && (
+                            {!isMe && settled && (
+                                <View style={[styles.settledBadge, { borderColor }]}>
+                                    <Text
+                                        style={[styles.memberActionBtnText, { color: mutedText }]}
+                                    >
+                                        Settled
+                                    </Text>
+                                </View>
+                            )}
+                            {!isMe && !settled && (
                                 <TouchableOpacity
                                     style={styles.memberActionBtn}
                                     activeOpacity={0.8}
+                                    onPress={() => setSettling({ friend: member, net })}
                                 >
                                     <Text style={styles.memberActionBtnText}>
-                                        {owesYou ? "Request" : "Pay · QR"}
+                                        {owesYou ? 'Request' : 'Pay · QR'}
                                     </Text>
                                 </TouchableOpacity>
-                            )} */}
+                            )}
                         </View>
                     );
                 })}
@@ -185,6 +240,22 @@ export const GroupMember = ({ onAddMember = () => {}, isShowBanner }: GroupMembe
                     </Text>
                 </View>
             )}
+            <PromptPaySheet
+                visible={!!settling}
+                mode={settling && settling.net > 0 ? 'request' : 'pay'}
+                friend={settling?.friend}
+                payeeName={
+                    settling && settling.net > 0 ? 'You' : (settling?.friend.displayName ?? '')
+                }
+                payeePromptPayId={
+                    settling && settling.net > 0
+                        ? getProfile(user?.uid ?? '')?.promptPayId
+                        : settling?.friend.promptPayId
+                }
+                amount={Math.abs(settling?.net ?? 0) / 100}
+                onClose={() => setSettling(null)}
+                onConfirm={onConfirmSettle}
+            />
         </View>
     );
 };
@@ -223,6 +294,12 @@ const styles = StyleSheet.create({
     memberInfo: { flex: 1, gap: 2 },
     memberName: { fontSize: 15, fontWeight: '600' },
     memberStatus: { fontSize: 13, fontWeight: '500' },
+    settledBadge: {
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 10,
+        borderWidth: 1,
+    },
     memberActionBtn: {
         backgroundColor: '#0F766E',
         paddingHorizontal: 14,

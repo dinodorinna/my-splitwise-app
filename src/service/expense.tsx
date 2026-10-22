@@ -12,7 +12,7 @@ import {
 
 const db = getFirestore();
 
-export type ExpenseCategory = 'food' | 'travel' | 'stay' | 'bills' | 'fun';
+export type ExpenseCategory = 'food' | 'travel' | 'stay' | 'bills' | 'fun' | 'settlement';
 export type SplitMode = 'equal' | 'custom';
 
 // In the app, amounts are integer satang (no float errors). In Firestore they are stored in baht (1000.00).
@@ -70,6 +70,22 @@ export async function createExpense(groupId: string, expense: ExpenseInput) {
     }
 }
 
+// A settlement is stored as an expense where the payer covers the payee's whole share,
+// so the balance math cancels the debt out without any special casing.
+export function createSettlement(
+    groupId: string,
+    { payerId, payeeId, amount }: { payerId: string; payeeId: string; amount: number }, // satang
+) {
+    return createExpense(groupId, {
+        description: 'Settle up',
+        category: 'settlement',
+        amount,
+        paidBy: payerId,
+        splitMode: 'custom',
+        splits: { [payeeId]: amount },
+    });
+}
+
 // Listen to a group's expenses (real-time), newest first
 export function subscribeToExpenses(
     groupId: string,
@@ -108,9 +124,12 @@ export type MyBalance = {
     owedToYou: number; // all in satang
 };
 
-// Net my balance against each other member, then add up what I owe and what I'm owed
-export function computeMyBalance(expenses: ExpenseProps[], myUid: string): MyBalance {
-    const net: Record<string, number> = {}; // other uid -> positive = they owe me
+// My net balance against each other member (satang): positive = they owe me, negative = I owe them
+export function computeNetByMember(
+    expenses: ExpenseProps[],
+    myUid: string,
+): Record<string, number> {
+    const net: Record<string, number> = {};
 
     for (const e of expenses) {
         if (e.paidBy === myUid) {
@@ -122,6 +141,12 @@ export function computeMyBalance(expenses: ExpenseProps[], myUid: string): MyBal
             net[e.paidBy] = (net[e.paidBy] ?? 0) - myShare;
         }
     }
+    return net;
+}
+
+// Net my balance against each other member, then add up what I owe and what I'm owed
+export function computeMyBalance(expenses: ExpenseProps[], myUid: string): MyBalance {
+    const net = computeNetByMember(expenses, myUid);
 
     let owedToYou = 0;
     let youOwe = 0;

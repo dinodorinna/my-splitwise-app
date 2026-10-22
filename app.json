@@ -10,7 +10,8 @@
         "ios": {
             "supportsTablet": true,
             "googleServicesFile": "./GoogleService-Info.plist",
-            "bundleIdentifier": "com.dinodorinna.splitzy"
+            "bundleIdentifier": "com.dinodorinna.splitzy",
+            "associatedDomains": ["applinks:splitzy-ceb27.web.app"]
         },
         "android": {
             "adaptiveIcon": {
@@ -22,6 +23,20 @@
             "predictiveBackGestureEnabled": false,
             "googleServicesFile": "./google-services.json",
             "package": "com.dinodorinna.splitzy",
+            "intentFilters": [
+                {
+                    "action": "VIEW",
+                    "autoVerify": true,
+                    "data": [
+                        {
+                            "scheme": "https",
+                            "host": "splitzy-ceb27.web.app",
+                            "pathPrefix": "/invite"
+                        }
+                    ],
+                    "category": ["BROWSABLE", "DEFAULT"]
+                }
+            ],
             "permissions": [
                 "android.permission.INTERNET",
                 "android.permission.ACCESS_NETWORK_STATE"

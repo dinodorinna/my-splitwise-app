@@ -2,11 +2,15 @@ import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    KeyboardAvoidingView,
     Linking,
+    Platform,
     Pressable,
+    ScrollView,
     StatusBar,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -33,6 +37,7 @@ import {
 } from '../../service/invites';
 import { setPendingInviteToken } from '../../service/pendingInvite';
 import { signInWithGoogle } from '../../auth/authService';
+import { getProfilesByIds, normalizePromptPayId, setMyPromptPayId } from '../../service/users';
 import { useAuth } from '../../context/auth/authContext';
 import { useGroupsContext } from '../../context/group/groupsContext';
 import { useThemeContext } from '../../context/theme/themeContext';
@@ -66,6 +71,16 @@ export const JoinGroupScreen = ({ route, navigation }: JoinGroupScreenProps) => 
 
     const [result, setResult] = useState<InviteLinkResult | null>(null);
     const [busy, setBusy] = useState(false);
+    const [promptPay, setPromptPay] = useState('');
+    const promptPayId = normalizePromptPayId(promptPay);
+
+    // Pre-fill if this user already set a PromptPay ID before
+    useEffect(() => {
+        if (!user) return;
+        getProfilesByIds([user.uid])
+            .then(([me]) => me?.promptPayId && setPromptPay(me.promptPayId))
+            .catch(() => {});
+    }, [user]);
 
     useEffect(() => {
         let cancelled = false;
@@ -81,6 +96,8 @@ export const JoinGroupScreen = ({ route, navigation }: JoinGroupScreenProps) => 
     const onJoin = async (link: InviteLink) => {
         setBusy(true);
         try {
+            if (!promptPayId) return;
+            await setMyPromptPayId(promptPayId);
             if (!groups.some((g) => g.id === link.groupId)) await acceptInviteLink(link);
             onGroupChange(link.groupId);
             navigation.navigate('MainTabs');
@@ -109,151 +126,192 @@ export const JoinGroupScreen = ({ route, navigation }: JoinGroupScreenProps) => 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: mode.background }]}>
             <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-
-            <View style={styles.topBar}>
-                <Pressable
-                    onPress={close}
-                    hitSlop={10}
-                    style={[styles.closeBtn, { backgroundColor: mode.card }]}
-                >
-                    <X size={18} color={muted} />
-                </Pressable>
-                <Text style={[styles.url, { color: muted }]} numberOfLines={1}>
-                    {shortUrl}
-                </Text>
-                <View style={styles.closeBtn} />
-            </View>
-
-            {!result ? (
-                <View style={styles.center}>
-                    <ActivityIndicator color={themes.main.primary} />
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
+                <View style={styles.topBar}>
+                    <Pressable
+                        onPress={close}
+                        hitSlop={10}
+                        style={[styles.closeBtn, { backgroundColor: mode.card }]}
+                    >
+                        <X size={18} color={muted} />
+                    </Pressable>
+                    <Text style={[styles.url, { color: muted }]} numberOfLines={1}>
+                        {shortUrl}
+                    </Text>
+                    <View style={styles.closeBtn} />
                 </View>
-            ) : result.status === 'valid' ? (
-                <>
-                    <View style={styles.body}>
-                        <View style={styles.inviter}>
-                            <Avatar name={inviter} index={0} size={36} />
-                            <Text style={[styles.inviterText, { color: muted }]}>
-                                <Text style={[styles.bold, { color: mode.text }]}>{inviter}</Text>{' '}
-                                invited you to split expenses
-                            </Text>
-                        </View>
 
-                        <GroupCard
-                            link={result.link}
-                            textColor={mode.text}
-                            muted={muted}
-                            border={border}
-                            cardBg={mode.card}
-                        />
-
-                        <Note Icon={Eye} muted={muted}>
-                            Members will see your name and email. Expenses added before you join
-                            aren&apos;t split with you.
-                        </Note>
-                        <Note Icon={QrCode} muted={muted}>
-                            Add your PromptPay ID later so friends can pay you by QR.
-                        </Note>
+                {!result ? (
+                    <View style={styles.center}>
+                        <ActivityIndicator color={themes.main.primary} />
                     </View>
-
-                    <View style={styles.footer}>
-                        {user ? (
-                            <>
-                                <View
-                                    style={[
-                                        styles.joiningAs,
-                                        { backgroundColor: mode.card, borderColor: border },
-                                    ]}
-                                >
-                                    <Avatar
-                                        name={user.displayName || user.email || '?'}
-                                        index={4}
-                                        size={28}
-                                    />
-                                    <Text
-                                        style={[styles.joiningAsText, { color: muted }]}
-                                        numberOfLines={1}
-                                    >
-                                        Joining as{' '}
-                                        <Text style={[styles.bold, { color: mode.text }]}>
-                                            {user.email}
-                                        </Text>
-                                    </Text>
-                                </View>
-                                <PrimaryButton
-                                    label="Join group"
-                                    busy={busy}
-                                    onPress={() => onJoin(result.link)}
-                                />
-                            </>
-                        ) : (
-                            <>
-                                <Text style={[styles.signInHint, { color: muted }]}>
-                                    Sign in to join — it takes a few seconds.
-                                </Text>
-                                <TouchableOpacity
-                                    activeOpacity={0.8}
-                                    disabled={busy}
-                                    onPress={onSignIn}
-                                    style={[
-                                        styles.googleBtn,
-                                        { backgroundColor: mode.card, borderColor: border },
-                                    ]}
-                                >
-                                    {busy ? (
-                                        <ActivityIndicator color={mode.text} />
-                                    ) : (
-                                        <>
-                                            <Text style={styles.googleG}>G</Text>
-                                            <Text style={[styles.googleText, { color: mode.text }]}>
-                                                Continue with Google to join
-                                            </Text>
-                                        </>
-                                    )}
-                                </TouchableOpacity>
-                            </>
-                        )}
-                        <TouchableOpacity onPress={close} style={styles.secondary}>
-                            <Text style={[styles.secondaryText, { color: muted }]}>Not now</Text>
-                        </TouchableOpacity>
-                    </View>
-                </>
-            ) : (
-                <>
-                    <View style={[styles.body, styles.centerBody]}>
-                        <View style={[styles.errorIcon, { backgroundColor: mode.card }]}>
-                            <Link2Off size={40} color="#E8643C" />
-                        </View>
-                        <Text style={[styles.errorTitle, { color: mode.text }]}>
-                            {result.status === 'expired'
-                                ? 'This invite has expired'
-                                : 'This invite link isn’t valid'}
-                        </Text>
-                        <Text style={[styles.errorDesc, { color: muted }]}>
-                            {result.status === 'expired'
-                                ? `Invite links last 7 days. Ask ${inviter} to send you a new one from the group.`
-                                : 'The link may have been revoked or mistyped. Ask for a new one from the group.'}
-                        </Text>
-                    </View>
-                    <View style={styles.footer}>
-                        <TouchableOpacity
-                            activeOpacity={0.85}
-                            onPress={askOnLine}
-                            style={styles.lineBtn}
+                ) : result.status === 'valid' ? (
+                    <>
+                        <ScrollView
+                            style={styles.bodyScroll}
+                            contentContainerStyle={styles.body}
+                            keyboardShouldPersistTaps="handled"
                         >
-                            <MessageCircle size={20} color="#fff" />
-                            <Text style={styles.lineBtnText}>
-                                {link ? `Ask ${inviter} on LINE` : 'Ask for a new link on LINE'}
+                            <View style={styles.inviter}>
+                                <Avatar name={inviter} index={0} size={36} />
+                                <Text style={[styles.inviterText, { color: muted }]}>
+                                    <Text style={[styles.bold, { color: mode.text }]}>
+                                        {inviter}
+                                    </Text>{' '}
+                                    invited you to split expenses
+                                </Text>
+                            </View>
+
+                            <GroupCard
+                                link={result.link}
+                                textColor={mode.text}
+                                muted={muted}
+                                border={border}
+                                cardBg={mode.card}
+                            />
+
+                            <Note Icon={Eye} muted={muted}>
+                                Members will see your name and email. Expenses added before you join
+                                aren&apos;t split with you.
+                            </Note>
+                            {user && (
+                                <View style={styles.promptPayBox}>
+                                    <Text style={[styles.promptPayLabel, { color: muted }]}>
+                                        YOUR PROMPTPAY NUMBER
+                                    </Text>
+                                    <TextInput
+                                        value={promptPay}
+                                        onChangeText={setPromptPay}
+                                        placeholder="Mobile number or national ID"
+                                        placeholderTextColor={muted}
+                                        keyboardType="number-pad"
+                                        maxLength={17}
+                                        style={[
+                                            styles.promptPayInput,
+                                            {
+                                                color: mode.text,
+                                                backgroundColor: mode.card,
+                                                borderColor: border,
+                                            },
+                                        ]}
+                                    />
+                                </View>
+                            )}
+                            <Note Icon={QrCode} muted={muted}>
+                                Friends use this to pay you by PromptPay QR.
+                            </Note>
+                        </ScrollView>
+
+                        <View style={styles.footer}>
+                            {user ? (
+                                <>
+                                    <View
+                                        style={[
+                                            styles.joiningAs,
+                                            { backgroundColor: mode.card, borderColor: border },
+                                        ]}
+                                    >
+                                        <Avatar
+                                            name={user.displayName || user.email || '?'}
+                                            index={4}
+                                            size={28}
+                                        />
+                                        <Text
+                                            style={[styles.joiningAsText, { color: muted }]}
+                                            numberOfLines={1}
+                                        >
+                                            Joining as{' '}
+                                            <Text style={[styles.bold, { color: mode.text }]}>
+                                                {user.email}
+                                            </Text>
+                                        </Text>
+                                    </View>
+                                    <PrimaryButton
+                                        label="Join group"
+                                        busy={busy}
+                                        disabled={!promptPayId}
+                                        onPress={() => onJoin(result.link)}
+                                    />
+                                </>
+                            ) : (
+                                <>
+                                    <Text style={[styles.signInHint, { color: muted }]}>
+                                        Sign in to join — it takes a few seconds.
+                                    </Text>
+                                    <TouchableOpacity
+                                        activeOpacity={0.8}
+                                        disabled={busy}
+                                        onPress={onSignIn}
+                                        style={[
+                                            styles.googleBtn,
+                                            { backgroundColor: mode.card, borderColor: border },
+                                        ]}
+                                    >
+                                        {busy ? (
+                                            <ActivityIndicator color={mode.text} />
+                                        ) : (
+                                            <>
+                                                <Text style={styles.googleG}>G</Text>
+                                                <Text
+                                                    style={[
+                                                        styles.googleText,
+                                                        { color: mode.text },
+                                                    ]}
+                                                >
+                                                    Continue with Google to join
+                                                </Text>
+                                            </>
+                                        )}
+                                    </TouchableOpacity>
+                                </>
+                            )}
+                            <TouchableOpacity onPress={close} style={styles.secondary}>
+                                <Text style={[styles.secondaryText, { color: muted }]}>
+                                    Not now
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </>
+                ) : (
+                    <>
+                        <View style={[styles.body, styles.centerBody]}>
+                            <View style={[styles.errorIcon, { backgroundColor: mode.card }]}>
+                                <Link2Off size={40} color="#E8643C" />
+                            </View>
+                            <Text style={[styles.errorTitle, { color: mode.text }]}>
+                                {result.status === 'expired'
+                                    ? 'This invite has expired'
+                                    : 'This invite link isn’t valid'}
                             </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={close} style={styles.secondary}>
-                            <Text style={[styles.secondaryText, { color: muted }]}>
-                                {user ? 'Go to my groups' : 'Close'}
+                            <Text style={[styles.errorDesc, { color: muted }]}>
+                                {result.status === 'expired'
+                                    ? `Invite links last 7 days. Ask ${inviter} to send you a new one from the group.`
+                                    : 'The link may have been revoked or mistyped. Ask for a new one from the group.'}
                             </Text>
-                        </TouchableOpacity>
-                    </View>
-                </>
-            )}
+                        </View>
+                        <View style={styles.footer}>
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                onPress={askOnLine}
+                                style={styles.lineBtn}
+                            >
+                                <MessageCircle size={20} color="#fff" />
+                                <Text style={styles.lineBtnText}>
+                                    {link ? `Ask ${inviter} on LINE` : 'Ask for a new link on LINE'}
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={close} style={styles.secondary}>
+                                <Text style={[styles.secondaryText, { color: muted }]}>
+                                    {user ? 'Go to my groups' : 'Close'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </>
+                )}
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 };
@@ -372,17 +430,19 @@ const Avatar = ({
 const PrimaryButton = ({
     label,
     busy,
+    disabled,
     onPress,
 }: {
     label: string;
     busy: boolean;
+    disabled?: boolean;
     onPress: () => void;
 }) => (
     <TouchableOpacity
         activeOpacity={0.85}
-        disabled={busy}
+        disabled={busy || disabled}
         onPress={onPress}
-        style={styles.primaryBtn}
+        style={[styles.primaryBtn, disabled && { opacity: 0.5 }]}
     >
         {busy ? (
             <ActivityIndicator color="#0B3B30" />
@@ -410,7 +470,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     url: { flex: 1, textAlign: 'center', fontSize: 12, fontFamily: 'Menlo' },
-    body: { flex: 1, paddingHorizontal: 20, paddingTop: 12, gap: 14 },
+    bodyScroll: { flex: 1 },
+    body: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12, gap: 14 },
     centerBody: { alignItems: 'center', justifyContent: 'center', paddingTop: 0, gap: 12 },
     inviter: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
     inviterText: { fontSize: 15, flexShrink: 1 },
@@ -453,6 +514,15 @@ const styles = StyleSheet.create({
     statDivider: { width: StyleSheet.hairlineWidth },
     statLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
     statValue: { fontSize: 17, fontWeight: '800' },
+    promptPayBox: { gap: 6 },
+    promptPayLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
+    promptPayInput: {
+        height: 50,
+        borderRadius: 14,
+        borderWidth: 1,
+        paddingHorizontal: 14,
+        fontSize: 16,
+    },
     note: { flexDirection: 'row', gap: 10 },
     noteIcon: { marginTop: 2 },
     noteText: { flex: 1, fontSize: 13, lineHeight: 19 },
