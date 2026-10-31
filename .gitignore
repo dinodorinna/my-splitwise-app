@@ -44,3 +44,6 @@ yarn-error.*
 .firebase/
 
 .firebaserc
+
+node_modules
+*.apk
